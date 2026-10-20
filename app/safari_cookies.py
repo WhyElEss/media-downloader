@@ -12,6 +12,7 @@ cookies are saved, the same way as an upload from Settings. --dry-run prints
 cookie names (never values) and saves nothing.
 """
 import argparse
+import json
 import os
 import sys
 import tempfile
@@ -32,6 +33,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("platform", help="platform name as in the library, e.g. instagram")
     parser.add_argument("--dry-run", action="store_true", help="list matching cookie names only")
+    parser.add_argument("--json", action="store_true", help="print the result as JSON (used by the web UI)")
     args = parser.parse_args()
 
     data = sys.stdin.buffer.read()
@@ -40,15 +42,22 @@ def main() -> int:
         return 1
     domains = domains_for(args.platform)
     jar = YoutubeDLCookieJar()
-    for cookie in parse_safari_cookies(data):
+    try:
+        parsed = list(parse_safari_cookies(data))
+    except Exception as exc:
+        print(f"Could not read this Safari cookie file: {exc}", file=sys.stderr)
+        return 1
+    for cookie in parsed:
         host = cookie.domain.lstrip(".").lower()
         if any(host == d or host.endswith("." + d) for d in domains):
             jar.set_cookie(cookie)
 
     names = sorted({c.name for c in jar})
-    print(f"{len(jar)} cookie(s) for {', '.join(domains)}: {', '.join(names) or '-'}")
+    if not args.json:
+        print(f"{len(jar)} cookie(s) for {', '.join(domains)}: {', '.join(names) or '-'}")
     if not len(jar):
-        print("Nothing to save. Sign in to the site in Safari, quit Safari, try again.", file=sys.stderr)
+        print(f"No cookies for {', '.join(domains)} in this file. Sign in to the site in Safari, "
+              "quit Safari (Cmd+Q) so it writes its cookies, then try again.", file=sys.stderr)
         return 1
     if args.dry_run:
         return 0
@@ -62,7 +71,10 @@ def main() -> int:
             count = cookies.save(args.platform, fh.read())
     finally:
         os.unlink(tmp)
-    print(f"Saved {count} cookie(s) as {args.platform}.")
+    if args.json:
+        print(json.dumps({"platform": args.platform, "entries": count, "names": names}))
+    else:
+        print(f"Saved {count} cookie(s) as {args.platform}.")
     return 0
 
 

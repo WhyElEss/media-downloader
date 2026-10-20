@@ -384,10 +384,17 @@ async def cookies_list(session=Depends(auth.require_session)):
 @app.post("/api/cookies")
 async def cookies_upload(platform: str = Form(...), file: UploadFile = File(...),
                          session=Depends(auth.require_csrf)):
-    raw = await file.read(cookies.MAX_SIZE + 1)
-    count = cookies.save(platform.strip().lower(), raw)
+    platform = platform.strip().lower()
+    raw = await file.read(cookies.MAX_SAFARI_SIZE + 1)
+    if cookies.is_safari(raw):
+        result = await cookies.import_safari(platform, raw)
+        log.info("cookies for %s imported from Safari (%d entries)", platform, result["entries"])
+        return {**result, "source": "safari"}
+    if len(raw) > cookies.MAX_SIZE:
+        raise ValueError("File is larger than 2 MB, that is not a cookies.txt.")
+    count = cookies.save(platform, raw)
     log.info("cookies for %s uploaded (%d entries)", platform, count)
-    return {"platform": platform, "entries": count}
+    return {"platform": platform, "entries": count, "source": "cookies.txt"}
 
 
 @app.delete("/api/cookies/{platform}")

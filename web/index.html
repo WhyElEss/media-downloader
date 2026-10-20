@@ -120,8 +120,23 @@
     <section id="tab-settings" class="tab hidden">
       <div class="card">
         <h2>Cookies</h2>
-        <p class="muted">For sites that need a login (Instagram and others). One Netscape-format cookies.txt per platform; the folder name in the library is the platform name.</p>
+        <p class="muted">For sites that need a login (Instagram and others). One set of cookies per platform; the platform name is the folder name in the library. Everyone using this service downloads with these cookies.</p>
         <div id="cookie-list"></div>
+        <details class="howto">
+          <summary>Safari on a Mac</summary>
+          <ol>
+            <li>Sign in to the site in Safari, then quit Safari with <kbd>⌘Q</kbd> so it saves its cookies.</li>
+            <li>Below, pick the platform and press <strong>Choose File</strong>.</li>
+            <li>In the file dialog press <kbd>⌘⇧G</kbd>, paste this folder and press Return:
+              <div class="copy-row">
+                <code id="safari-path">~/Library/Containers/com.apple.Safari/Data/Library/Cookies/</code>
+                <button id="copy-safari-path" type="button">Copy</button>
+              </div>
+            </li>
+            <li>Choose <code>Cookies.binarycookies</code> and press <strong>Upload cookies</strong>.</li>
+          </ol>
+          <p class="muted">The file holds cookies of every site you use in Safari. Only the chosen platform's cookies are kept; the rest is discarded and never stored.</p>
+        </details>
         <form id="cookie-form" class="stack">
           <label for="cookie-platform">Platform</label>
           <input id="cookie-platform" list="platforms" placeholder="instagram" autocapitalize="none" required pattern="[a-z0-9][a-z0-9-]{0,39}">
@@ -129,8 +144,8 @@
             <option value="instagram"><option value="youtube"><option value="tiktok"><option value="twitter">
             <option value="facebook"><option value="soundcloud"><option value="reddit"><option value="vk">
           </datalist>
-          <label for="cookie-file">cookies.txt</label>
-          <input id="cookie-file" type="file" accept=".txt,text/plain" required>
+          <label for="cookie-file">cookies.txt or Safari Cookies.binarycookies</label>
+          <input id="cookie-file" type="file" accept=".txt,.binarycookies,text/plain,application/octet-stream" required>
           <button class="primary" type="submit">Upload cookies</button>
         </form>
       </div>

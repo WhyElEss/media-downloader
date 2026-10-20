@@ -203,3 +203,10 @@ main { max-width: 980px; margin: 0 auto; padding: 16px; }
   .modal-box { border-radius: 0; height: 100%; }
 }
 .tile.unavailable { opacity: .6; cursor: not-allowed; }
+.howto { margin: 12px 0; border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; }
+.howto summary { cursor: pointer; font-weight: 600; }
+.howto ol { padding-left: 20px; margin: 8px 0; display: grid; gap: 6px; }
+.howto code, .howto kbd { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--input); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; overflow-wrap: anywhere; }
+.copy-row { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.copy-row code { flex: 1; min-width: 0; user-select: all; padding: 6px 8px; }
+.copy-row button { min-height: 32px; padding: 4px 10px; }

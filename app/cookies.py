@@ -1,14 +1,48 @@
 """Per-platform cookies.txt (Netscape format) in the config volume."""
+import asyncio
+import json
 import os
 import re
 import time
+from pathlib import Path
 
-from .config import COOKIES_DIR
-from .engines import cookie_path
+from .config import COOKIES_DIR, ENGINES_BIN
+from .engines import cookie_path, engine_env
 
 PLATFORM_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 HEADER = "# Netscape HTTP Cookie File"
 MAX_SIZE = 2 * 1024 * 1024
+# Safari keeps every site's cookies in one file; a busy profile is a few MB.
+MAX_SAFARI_SIZE = 20 * 1024 * 1024
+SAFARI_MAGIC = b"cook"
+
+
+def is_safari(raw: bytes) -> bool:
+    return raw.startswith(SAFARI_MAGIC)
+
+
+async def import_safari(platform: str, raw: bytes) -> dict:
+    """Keep one platform's cookies from Safari's Cookies.binarycookies.
+
+    yt-dlp's parser lives in the engines venv, so the import runs there as
+    app.safari_cookies; the file goes through stdin and never touches disk."""
+    if not PLATFORM_RE.match(platform or ""):
+        raise ValueError("Platform must be lowercase letters, digits or '-', e.g. instagram.")
+    if len(raw) > MAX_SAFARI_SIZE:
+        raise ValueError("This Safari cookie file is larger than 20 MB.")
+    proc = await asyncio.create_subprocess_exec(
+        str(ENGINES_BIN / "python"), "-m", "app.safari_cookies", platform, "--json",
+        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        cwd=str(Path(__file__).resolve().parent.parent), env=engine_env())
+    try:
+        out, err = await asyncio.wait_for(proc.communicate(raw), 60)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        raise ValueError("Reading the Safari cookie file took longer than 60 s.")
+    if proc.returncode != 0:
+        raise ValueError(err.decode("utf-8", "replace").strip() or "Could not import Safari cookies.")
+    return json.loads(out.decode().strip().splitlines()[-1])
 
 
 def _entries(text: str) -> int:

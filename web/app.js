@@ -597,6 +597,23 @@ async function loadCookies() {
     } }))));
 }
 
+// Clipboard API exists only on HTTPS; on the plain-http LAN address fall back
+// to selecting the text and the legacy copy command.
+$("#copy-safari-path").addEventListener("click", async () => {
+  const code = $("#safari-path");
+  try {
+    await navigator.clipboard.writeText(code.textContent);
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents(code);
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    try { document.execCommand("copy"); } catch {}
+  }
+  toast("Folder path copied");
+});
+
 $("#cookie-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const platform = $("#cookie-platform").value.trim().toLowerCase();
@@ -608,7 +625,9 @@ $("#cookie-form").addEventListener("submit", async (ev) => {
   form.append("file", file);
   try {
     const r = await api("api/cookies", { method: "POST", form });
-    toast(`Saved ${r.entries} cookies for ${r.platform}`);
+    toast(r.source === "safari"
+      ? `Saved ${r.entries} ${r.platform} cookies from Safari: ${r.names.join(", ")}`
+      : `Saved ${r.entries} cookies for ${r.platform}`, 8000);
     ev.target.reset();
     loadCookies();
   } catch (e) { if (e.status !== 401) toast(e.message, 8000); }

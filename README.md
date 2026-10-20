@@ -149,6 +149,10 @@ Instagram и некоторые другие сайты отдают конте�
 
 ### Safari на macOS
 
+**Через интерфейс.** Settings → Cookies → «Safari on a Mac»: войти на сайт в Safari, закрыть Safari (Cmd+Q), выбрать платформу, в окне выбора файла нажать Cmd+Shift+G, вставить `~/Library/Containers/com.apple.Safari/Data/Library/Cookies/` и выбрать `Cookies.binarycookies`. Сервер оставит только cookies выбранной платформы; остальные не сохраняются.
+
+**Из терминала** (то же самое без браузера):
+
 В Safari нет экспорта cookies.txt, а `--cookies-from-browser safari` в yt-dlp работает только на самом Mac. Поэтому файл cookies Safari передаётся на хост через SSH, а утилита `app.safari_cookies` в контейнере оставляет из него только cookies нужной платформы. Сам файл на диск хоста не записывается.
 
 1. Войти на сайт в Safari, затем закрыть Safari (Cmd+Q).
