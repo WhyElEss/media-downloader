@@ -147,6 +147,19 @@ Instagram и некоторые другие сайты отдают конте�
 2. Экспортировать cookies этого сайта в формате **Netscape cookies.txt** расширением браузера. В FAQ yt-dlp рекомендуются «Get cookies.txt LOCALLY» для Chrome и «cookies.txt» для Firefox.
 3. В интерфейсе: **Settings → Cookies**. Platform — имя платформы, как в библиотеке (`instagram`, `youtube`, `twitter`, `tiktok`…), файл — экспортированный `cookies.txt`. Upload, затем подтвердить.
 
+### Safari на macOS
+
+В Safari нет экспорта cookies.txt, а `--cookies-from-browser safari` в yt-dlp работает только на самом Mac. Поэтому файл cookies Safari передаётся на хост через SSH, а утилита `app.safari_cookies` в контейнере оставляет из него только cookies нужной платформы. Сам файл на диск хоста не записывается.
+
+1. Войти на сайт в Safari, затем закрыть Safari (Cmd+Q).
+2. На Mac (подставить свой адрес хоста и `PUID:PGID`):
+
+   ```bash
+   ssh <пользователь>@<хост> 'docker exec -i -u 1000:1000 -w /srv mediadl /opt/engines/bin/python -m app.safari_cookies instagram' < ~/Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies
+   ```
+
+   С флагом `--dry-run` после имени платформы утилита только перечислит имена найденных cookies, без значений, и ничего не сохранит.
+
 Файлы хранятся в томе `mediadl_config` (`/config/cookies/<платформа>.txt`, права 600), а не в библиотеке. Каждая загрузка получает временную копию, потому что движки записывают cookies обратно.
 
 Если ссылка снова перестала работать, скорее всего, сессия на сайте истекла: экспортируйте cookies заново и загрузите их поверх старых.
