@@ -1,0 +1,23 @@
+# secrets and local config — never commit
+.env
+*.env
+!.env.example
+cookies/
+*cookies*.txt
+*.sqlite3
+*.sqlite3-*
+# downloaded media / runtime data
+library/
+downloads/
+data/
+config/
+*.part
+*.ytdl
+# tooling
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+.claude/
+CLAUDE.md
+CLAUDE.local.md

@@ -1,0 +1,44 @@
+# Lives on the host next to .env. The image is built straight from GitHub:
+#   docker compose build --no-cache && docker compose up -d
+name: mediadl
+
+services:
+  mediadl:
+    build:
+      context: https://github.com/WhyElEss/media-downloader.git#main
+    container_name: mediadl
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${HOST_PORT:-8790}:8790"
+    volumes:
+      - ${LIBRARY_PATH:?set LIBRARY_PATH in .env}:/library
+      - config:/config
+      - data:/data
+    networks:
+      - net
+    cpus: ${CPUS:-2}
+    mem_limit: ${MEM_LIMIT:-1g}
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8790/healthz', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  config:
+    name: mediadl_config
+  data:
+    name: mediadl_data
+
+networks:
+  net:
+    name: mediadl_net

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Media Downloader</title>
+  <meta name="theme-color" content="#0f1115">
+  <link rel="icon" href="static/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+
+<div id="login-view" class="login hidden">
+  <form id="login-form" class="card login-card">
+    <h1>Media Downloader</h1>
+    <label for="login-user">Username</label>
+    <input id="login-user" name="username" autocomplete="username" autocapitalize="none" required>
+    <label for="login-pass">Password</label>
+    <input id="login-pass" name="password" type="password" autocomplete="current-password" required>
+    <button class="primary wide" type="submit">Sign in</button>
+    <p id="login-error" class="error-text"></p>
+  </form>
+</div>
+
+<div id="app-view" class="hidden">
+  <header class="topbar">
+    <span class="brand">Media Downloader</span>
+    <nav id="tabs" class="tabs">
+      <button data-tab="download" class="active">Download</button>
+      <button data-tab="queue">Queue <span id="queue-badge" class="badge hidden"></span></button>
+      <button data-tab="library">Library</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-download" class="tab">
+      <form id="analyze-form" class="card">
+        <label for="url">Link</label>
+        <div class="row">
+          <input id="url" type="url" inputmode="url" placeholder="https://…" autocomplete="off" required>
+          <button id="analyze-btn" class="primary" type="submit">Analyze</button>
+        </div>
+        <div class="row inline">
+          <label for="engine">Engine</label>
+          <select id="engine">
+            <option value="auto">Auto</option>
+            <option value="yt-dlp">yt-dlp (video, audio)</option>
+            <option value="gallery-dl">gallery-dl (images, galleries)</option>
+          </select>
+        </div>
+      </form>
+
+      <div id="analyze-status"></div>
+
+      <div id="result" class="card hidden">
+        <div class="result-head">
+          <div class="grow">
+            <h2 id="r-title"></h2>
+            <p id="r-meta" class="muted"></p>
+          </div>
+          <button id="r-switch" class="ghost" type="button"></button>
+        </div>
+        <p id="r-note" class="note hidden"></p>
+        <details id="r-fallback" class="hidden">
+          <summary>Error from the other engine</summary>
+          <pre id="r-fallback-text"></pre>
+        </details>
+
+        <div id="r-select" class="hidden">
+          <div class="toolbar">
+            <button id="sel-all" type="button">Select all</button>
+            <button id="sel-none" type="button">Select none</button>
+            <span id="sel-count" class="muted"></span>
+          </div>
+          <div id="r-grid" class="grid"></div>
+        </div>
+
+        <fieldset id="r-formats" class="formats"></fieldset>
+
+        <label class="check"><input type="checkbox" id="deliver"> Send to this device when finished</label>
+        <button id="download-btn" class="primary wide" type="button">Download</button>
+      </div>
+    </section>
+
+    <section id="tab-queue" class="tab hidden">
+      <div class="toolbar">
+        <h2 class="grow">Queue &amp; history</h2>
+        <button id="clear-jobs" type="button">Clear finished</button>
+      </div>
+      <div id="jobs"></div>
+    </section>
+
+    <section id="tab-library" class="tab hidden">
+      <div class="card filters">
+        <select id="lib-platform"><option value="">All platforms</option></select>
+        <select id="lib-kind">
+          <option value="">All types</option>
+          <option value="video">Video</option>
+          <option value="audio">Audio</option>
+          <option value="image">Images</option>
+          <option value="other">Other</option>
+        </select>
+        <input id="lib-search" type="search" placeholder="Search by name">
+      </div>
+      <div class="toolbar">
+        <button id="lib-select-mode" type="button">Select</button>
+        <span id="lib-selection" class="hidden">
+          <button id="lib-sel-all" type="button">All on page</button>
+          <button id="lib-zip" type="button">Download ZIP</button>
+          <button id="lib-delete" class="danger" type="button">Delete</button>
+        </span>
+        <span id="lib-count" class="muted grow right"></span>
+      </div>
+      <div id="lib-grid" class="grid lib"></div>
+      <button id="lib-more" class="wide hidden" type="button">Load more</button>
+      <form id="zip-form" method="post" action="api/library/zip" class="hidden"></form>
+    </section>
+
+    <section id="tab-settings" class="tab hidden">
+      <div class="card">
+        <h2>Cookies</h2>
+        <p class="muted">For sites that need a login (Instagram and others). One Netscape-format cookies.txt per platform; the folder name in the library is the platform name.</p>
+        <div id="cookie-list"></div>
+        <form id="cookie-form" class="stack">
+          <label for="cookie-platform">Platform</label>
+          <input id="cookie-platform" list="platforms" placeholder="instagram" autocapitalize="none" required pattern="[a-z0-9][a-z0-9-]{0,39}">
+          <datalist id="platforms">
+            <option value="instagram"><option value="youtube"><option value="tiktok"><option value="twitter">
+            <option value="facebook"><option value="soundcloud"><option value="reddit"><option value="vk">
+          </datalist>
+          <label for="cookie-file">cookies.txt</label>
+          <input id="cookie-file" type="file" accept=".txt,text/plain" required>
+          <button class="primary" type="submit">Upload cookies</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Engines</h2>
+        <dl id="engine-versions" class="kv"></dl>
+        <button id="engines-update" class="primary" type="button">Update engines</button>
+        <pre id="engines-output" class="hidden"></pre>
+      </div>
+
+      <div class="card">
+        <h2>Account</h2>
+        <p>Signed in as <strong id="me-user"></strong></p>
+        <button id="logout" type="button">Sign out</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-head">
+      <strong id="modal-title" class="grow"></strong>
+      <button id="modal-close" class="ghost" type="button" aria-label="Close">✕</button>
+    </div>
+    <div id="modal-body" class="modal-body"></div>
+    <div class="modal-actions">
+      <a id="modal-download" class="button primary" href="#">Download</a>
+      <button id="modal-delete" class="danger" type="button">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="static/app.js"></script>
+</body>
+</html>
