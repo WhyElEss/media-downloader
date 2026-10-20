@@ -9,6 +9,8 @@ from pathlib import Path
 
 import httpx
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -80,6 +82,16 @@ async def security_headers(request: Request, call_next):
     elif request.url.path.startswith("/static/"):
         response.headers.setdefault("Cache-Control", "no-cache")  # revalidate after updates
     return response
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError):
+    # Log what actually arrived, so an empty or broken upload can be told apart
+    # from a client that never sent the field.
+    log.warning("rejected %s %s: content-type=%r content-length=%r errors=%s", request.method, request.url.path,
+                request.headers.get("content-type"), request.headers.get("content-length"),
+                [(".".join(map(str, e.get("loc", ()))), e.get("msg")) for e in exc.errors()])
+    return JSONResponse({"detail": jsonable_encoder(exc.errors())}, status_code=422)
 
 
 @app.exception_handler(ValueError)

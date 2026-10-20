@@ -17,7 +17,10 @@ RUN apt-get update \
 COPY requirements.txt engines.txt /tmp/
 RUN python -m venv /opt/app && /opt/app/bin/pip install -r /tmp/requirements.txt \
  && python -m venv /opt/engines && /opt/engines/bin/pip install --upgrade pip \
- && /opt/engines/bin/pip install --upgrade -r /tmp/engines.txt
+ && /opt/engines/bin/pip install --upgrade -r /tmp/engines.txt \
+ # Writable for whatever PUID runs the container, so start-up does not need
+ # a slow chown -R before engines can be upgraded in place.
+ && chmod -R a+rwX /opt/engines
 
 WORKDIR /srv
 COPY app ./app

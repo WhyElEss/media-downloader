@@ -57,14 +57,23 @@ async function api(path, { method = "GET", body, form } = {}) {
   const res = await fetch(path, opts);
   let data = null;
   const text = await res.text();
-  try { data = text ? JSON.parse(text) : null; } catch { data = { detail: text }; }
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    // Not our JSON: a proxy page such as Cloudflare's 502 while the service restarts.
+    data = { detail: res.status >= 500
+      ? `The server is not reachable right now (HTTP ${res.status}). It may be restarting; try again in a minute.`
+      : `Unexpected response (HTTP ${res.status}).` };
+  }
   if (res.status === 401 && path !== "api/login") {
     showLogin();
     throw new ApiError(401, "Signed out");
   }
   if (!res.ok) {
     let detail = data && data.detail;
-    if (Array.isArray(detail)) detail = detail.map((d) => d.msg || JSON.stringify(d)).join("\n");
+    if (Array.isArray(detail)) {
+      detail = detail.map((d) => `${(d.loc || []).filter((p) => p !== "body").join(".") || "request"}: ${d.msg || JSON.stringify(d)}`).join("\n");
+    }
     throw new ApiError(res.status, detail || `HTTP ${res.status}`);
   }
   return data;
@@ -620,9 +629,24 @@ $("#cookie-form").addEventListener("submit", async (ev) => {
   const file = $("#cookie-file").files[0];
   if (!file) return;
   if (!confirm(`Upload ${file.name} as cookies for "${platform}"? Existing cookies for it will be replaced.`)) return;
+  // Read the file here first: if the browser cannot read it (a selection
+  // restored after a restart, a file it is not allowed to open) the request
+  // would otherwise go out without it and the server could only say
+  // "field required".
+  let bytes;
+  try {
+    bytes = await file.arrayBuffer();
+  } catch (e) {
+    toast(`The browser could not read ${file.name} (${e.message || e}). Choose the file again and upload right away.`, 10000);
+    return;
+  }
+  if (!bytes.byteLength) {
+    toast(`${file.name} is empty. Choose the file again and upload right away.`, 10000);
+    return;
+  }
   const form = new FormData();
   form.append("platform", platform);
-  form.append("file", file);
+  form.append("file", new Blob([bytes], { type: "application/octet-stream" }), file.name);
   try {
     const r = await api("api/cookies", { method: "POST", form });
     toast(r.source === "safari"

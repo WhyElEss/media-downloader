@@ -27,7 +27,7 @@ chmod 700 /config/cookies
 [ -d /library ] || { echo "ERROR: /library is not mounted (set LIBRARY_PATH in .env)"; exit 1; }
 
 # The engines venv must be writable by the app user for "Update engines".
-if [ "$(stat -c %u /opt/engines)" != "$PUID" ]; then
+if ! gosu "$PUID:$PGID" test -w /opt/engines/lib; then
   echo "Preparing engines directory for uid $PUID..."
   chown -R "$PUID:$PGID" /opt/engines
 fi
