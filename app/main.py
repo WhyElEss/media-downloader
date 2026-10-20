@@ -175,7 +175,7 @@ def public_analysis(aid: str, result: dict) -> dict:
         "fallback_error": result.get("fallback_error"),
         "has_cookies": engines.cookie_path(result["platform"]).is_file(),
         "entries": [{"idx": e["idx"], "title": e["title"], "media": e["media"], "duration": e.get("duration"),
-                     "thumb": bool(e.get("thumb_url"))} for e in result["entries"]],
+                     "thumb": bool(e.get("thumb_url")), "error": e.get("error")} for e in result["entries"]],
     }
 
 
@@ -268,7 +268,7 @@ async def create_job(body: JobBody, session=Depends(auth.require_csrf)):
     if not result:
         raise HTTPException(410, "This analysis has expired, press Analyze again.")
     wanted = set(body.selected)
-    entries = [e for e in result["entries"] if e["idx"] in wanted]
+    entries = [e for e in result["entries"] if e["idx"] in wanted and not e.get("error")]
     if not entries:
         raise HTTPException(400, "Select at least one item.")
     fmt = normalize_format(body.format, result)

@@ -200,3 +200,4 @@ main { max-width: 980px; margin: 0 auto; padding: 16px; }
   .modal { padding: 0; }
   .modal-box { border-radius: 0; height: 100%; }
 }
+.tile.unavailable { opacity: .6; cursor: not-allowed; }

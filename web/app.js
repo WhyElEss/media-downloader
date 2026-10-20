@@ -179,7 +179,7 @@ async function analyze(engine) {
 
 function renderAnalysis(a) {
   state.analysis = a;
-  state.selected = new Set(a.entries.map((e) => e.idx));
+  state.selected = new Set(a.entries.filter((e) => !e.error).map((e) => e.idx));
   $("#r-title").textContent = a.title || a.url;
   const meta = [a.platform, a.uploader, `${a.entries.length} item${a.entries.length === 1 ? "" : "s"}`, `engine: ${a.engine}`];
   if (a.has_cookies) meta.push("cookies: yes");
@@ -214,9 +214,16 @@ function entryTile(a, e) {
     img.addEventListener("load", () => { thumb.firstChild && thumb.firstChild.nodeType === 3 && thumb.firstChild.remove(); });
     thumb.append(img);
   }
-  const tile = h("div", { class: "tile selected" }, thumb, box,
-    e.duration ? h("span", { class: "tag", text: fmtDuration(e.duration) }) : h("span", { class: "tag", text: `#${e.idx}` }),
-    h("div", { class: "cap", text: e.title }));
+  const tag = h("span", { class: "tag", text: e.duration ? fmtDuration(e.duration) : `#${e.idx}` });
+  const caption = h("div", { class: "cap", text: e.title });
+  if (e.error) {
+    // The engine cannot download this one (DRM, removed, …): show why, never select it.
+    const tile = h("div", { class: "tile unavailable", title: e.error }, thumb, tag, caption,
+      h("div", { class: "sub error-text", text: e.error }));
+    tile._toggle = () => {};
+    return tile;
+  }
+  const tile = h("div", { class: "tile selected" }, thumb, box, tag, caption);
   const toggle = (on) => {
     if (on) state.selected.add(e.idx); else state.selected.delete(e.idx);
     box.checked = on;
@@ -231,7 +238,8 @@ function entryTile(a, e) {
 
 function updateSelCount() {
   const a = state.analysis;
-  $("#sel-count").textContent = `${state.selected.size} of ${a.entries.length} selected`;
+  const blocked = a.entries.filter((e) => e.error).length;
+  $("#sel-count").textContent = `${state.selected.size} of ${a.entries.length} selected` + (blocked ? ` · ${blocked} unavailable` : "");
   $("#download-btn").disabled = state.selected.size === 0;
 }
 $("#sel-all").addEventListener("click", () => { for (const t of $("#r-grid").children) t._toggle(true); });

@@ -247,7 +247,19 @@ async def analyze_ytdlp(url: str, platform: str) -> dict:
     if info.get("_type") == "playlist" and flat and len(untitled) * 2 >= len(flat):
         # Some sites (SoundCloud sets) list only track ids when flat; read the
         # entries in full so the picker can show titles, covers and durations.
-        info = await _ytdlp_json(url, platform, ["--ignore-errors", "--playlist-items", "1:200"], 600)
+        full = await _ytdlp_json(url, platform, ["--ignore-errors", "--playlist-items", "1:200"], 600)
+        # Entries yt-dlp could not read (DRM, removed, geo-blocked) come back as
+        # null at their position; keep them, with the engine's message, so the
+        # picker shows why they cannot be downloaded instead of hiding them.
+        reasons = dict(re.findall(r"^ERROR: \[[^\]]+\] ([^:\s]+): (.+)$", full.get("_stderr", ""), re.M))
+        read = full.get("entries") or []
+        merged = []
+        for pos, flat_entry in enumerate(flat):
+            entry = read[pos] if pos < len(read) else None
+            if not isinstance(entry, dict) and isinstance(flat_entry, dict):
+                entry = dict(flat_entry, _error=reasons.get(str(flat_entry.get("id")), "yt-dlp could not read this entry."))
+            merged.append(entry)
+        info = dict(full, entries=merged)
     err = info.pop("_stderr", "")
 
     title = info.get("title") or url
@@ -268,6 +280,7 @@ async def analyze_ytdlp(url: str, platform: str) -> dict:
                 "media": _ytdlp_media(entry, platform),
                 "duration": entry.get("duration"),
                 "thumb_url": _ytdlp_thumb(entry),
+                "error": entry.get("_error"),
                 "spec": {"engine": "yt-dlp", "url": own if own_page else url,
                          "playlist_item": None if own_page else pos, "platform": platform},
             })
