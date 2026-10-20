@@ -249,7 +249,14 @@ function renderFormats(a) {
     const res = h("select", { id: "fmt-height", "aria-label": "Resolution" },
       h("option", { value: "", text: "Best available" }),
       a.heights.map((ht) => h("option", { value: ht, text: a.heights_exact ? `${ht}p` : `up to ${ht}p` })));
-    box.append(formatOption("video", "Video · MP4", res, true));
+    const compat = h("label", { class: "check sub-option" },
+      h("input", { type: "checkbox", id: "fmt-compat", checked: true }),
+      "H.264 (plays on every device; YouTube often has higher resolutions only in AV1/VP9)");
+    box.append(formatOption("video", "Video · MP4", res, true), compat);
+  }
+  if (a.has_audio === false) {
+    box.append(h("p", { class: "note", text: "This video has no audio track, so audio formats are not offered." }));
+    return;
   }
   const br = h("select", { id: "fmt-bitrate", "aria-label": "MP3 bitrate" },
     [320, 256, 192, 160, 128, 96].map((b) => h("option", { value: b, text: `${b} kbps`, selected: b === 192 })));
@@ -265,7 +272,7 @@ function formatOption(value, text, extra, checked) {
 
 function chosenFormat() {
   const mode = (document.querySelector("input[name=fmt]:checked") || {}).value;
-  if (mode === "video") return { mode, height: $("#fmt-height").value || null };
+  if (mode === "video") return { mode, height: $("#fmt-height").value || null, compat: $("#fmt-compat").checked };
   if (mode === "mp3") return { mode, bitrate: Number($("#fmt-bitrate").value) };
   return { mode };
 }

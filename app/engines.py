@@ -219,16 +219,36 @@ def _heights(info: dict) -> set[int]:
     }
 
 
-async def analyze_ytdlp(url: str, platform: str) -> dict:
+def _has_audio(info: dict) -> bool:
+    """False only when yt-dlp lists formats and every one says acodec=none."""
+    formats = info.get("formats") or []
+    return not formats or any(f.get("acodec") != "none" for f in formats)
+
+
+async def _ytdlp_json(url: str, platform: str, extra: list[str], timeout: float) -> dict:
     with TempCookies(platform) as cookie_args:
         rc, out, err = await run_capture(
-            with_cookies([YTDLP, "-J", "--flat-playlist", "--", url], cookie_args), 240)
-    if rc != 0 or not out.strip():
-        raise EngineError(err.strip() or f"yt-dlp exited with code {rc} and no output.")
+            with_cookies([YTDLP, "-J", *extra, "--", url], cookie_args), timeout)
     try:
-        info = json.loads(out)
+        info = json.loads(out) if out.strip() else None
     except json.JSONDecodeError:
-        raise EngineError(err.strip() or "yt-dlp printed something that is not JSON.")
+        info = None
+    # With --ignore-errors yt-dlp exits 1 for a broken entry but still prints the rest.
+    if not isinstance(info, dict):
+        raise EngineError(err.strip() or f"yt-dlp exited with code {rc} and printed no metadata.")
+    info["_stderr"] = err.strip()
+    return info
+
+
+async def analyze_ytdlp(url: str, platform: str) -> dict:
+    info = await _ytdlp_json(url, platform, ["--flat-playlist"], 240)
+    flat = info.get("entries") or []
+    untitled = [e for e in flat if isinstance(e, dict) and not e.get("title")]
+    if info.get("_type") == "playlist" and flat and len(untitled) * 2 >= len(flat):
+        # Some sites (SoundCloud sets) list only track ids when flat; read the
+        # entries in full so the picker can show titles, covers and durations.
+        info = await _ytdlp_json(url, platform, ["--ignore-errors", "--playlist-items", "1:200"], 600)
+    err = info.pop("_stderr", "")
 
     title = info.get("title") or url
     uploader = info.get("uploader") or info.get("channel") or info.get("uploader_id")
@@ -263,6 +283,7 @@ async def analyze_ytdlp(url: str, platform: str) -> dict:
             "thumb_url": _ytdlp_thumb(info),
             "spec": {"engine": "yt-dlp", "url": url, "playlist_item": None, "platform": platform},
         })
+    has_audio = info.get("_type") == "playlist" or _has_audio(info)
     media = summarize_media(entries)
     if media != "audio" and not heights:
         heights = set(STANDARD_HEIGHTS)
@@ -271,13 +292,17 @@ async def analyze_ytdlp(url: str, platform: str) -> dict:
         "uploader": uploader, "media": media, "entries": entries,
         "heights": sorted(heights, reverse=True) if media != "audio" else [],
         "heights_exact": info.get("_type") not in ("playlist",) and bool(_heights(info)),
+        "has_audio": has_audio,
     }
 
 
 def ytdlp_args(spec: dict, fmt: dict) -> list[str]:
     platform = spec["platform"]
     author = f"%({AUTHOR_FIELDS.get(platform, DEFAULT_AUTHOR_FIELDS)}|unknown)s"
-    template = f"{platform}/{author}/%(upload_date>%Y-%m-%d|undated)s_{author}_%(id)s.%(ext)s"
+    # Video files carry the resolution so a second download in another quality
+    # does not collide with (and get skipped as) the first one.
+    quality = "%(height&_{}p|)s" if fmt["mode"] == "video" else ""
+    template = f"{platform}/{author}/%(upload_date>%Y-%m-%d|undated)s_{author}_%(id)s{quality}.%(ext)s"
     args = [
         YTDLP, "--newline", "--progress", "--no-mtime", "--no-overwrites",
         "--progress-template",
@@ -285,6 +310,8 @@ def ytdlp_args(spec: dict, fmt: dict) -> list[str]:
         "--print", "after_move:@@F %(filepath)s",
         "-P", str(LIBRARY), "-o", template,
     ]
+    if spec.get("temp_dir"):
+        args += ["-P", f"temp:{spec['temp_dir']}"]
     if spec.get("playlist_item"):
         args += ["--yes-playlist", "--playlist-items", str(spec["playlist_item"])]
     else:
@@ -297,7 +324,10 @@ def ytdlp_args(spec: dict, fmt: dict) -> list[str]:
             args += ["-f", f"bv*[height<={height}]+ba/b[height<={height}]/bv*+ba/b"]
         else:
             args += ["-f", "bv*+ba/b"]
-        args += ["-S", "res,ext:mp4:m4a", "--merge-output-format", "mp4", "--remux-video", "mp4"]
+        # compat: the best resolution that exists in H.264 + AAC (plays everywhere);
+        # otherwise the best resolution in any codec (often AV1/VP9 on YouTube).
+        sort = "+codec:avc:m4a,res,ext:mp4:m4a" if fmt.get("compat") else "res,ext:mp4:m4a"
+        args += ["-S", sort, "--merge-output-format", "mp4", "--remux-video", "mp4"]
     elif mode == "mp3":
         args += ["-f", "ba/b", "-x", "--audio-format", "mp3", "--audio-quality", f"{fmt['bitrate']}K",
                  "--embed-metadata", "--embed-thumbnail", "--convert-thumbnails", "jpg"]

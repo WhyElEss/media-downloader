@@ -19,6 +19,14 @@ from .config import CONFIG, DATA, LIBRARY, THUMBS, TMP, USERNAME, WEB
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("mediadl")
 
+
+class _SkipHealthz(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/healthz" not in record.getMessage()
+
+
+logging.getLogger("uvicorn.access").addFilter(_SkipHealthz())
+
 for ext, mime in {".m4a": "audio/mp4", ".opus": "audio/ogg", ".webp": "image/webp", ".mkv": "video/x-matroska",
                   ".webm": "video/webm", ".avif": "image/avif", ".heic": "image/heic", ".flac": "audio/flac"}.items():
     mimetypes.add_type(mime, ext)
@@ -162,6 +170,7 @@ def public_analysis(aid: str, result: dict) -> dict:
         "media": result["media"],
         "heights": result.get("heights", []),
         "heights_exact": result.get("heights_exact", False),
+        "has_audio": result.get("has_audio", True),
         "note": result.get("note"),
         "fallback_error": result.get("fallback_error"),
         "has_cookies": engines.cookie_path(result["platform"]).is_file(),
@@ -240,7 +249,9 @@ def normalize_format(fmt: dict, result: dict) -> dict:
         height = int(height) if height else None
         if height is not None and not 100 <= height <= 8640:
             raise ValueError("Bad resolution")
-        return {"mode": "video", "height": height}
+        return {"mode": "video", "height": height, "compat": bool(fmt.get("compat"))}
+    if mode in ("mp3", "m4a", "original") and result.get("has_audio") is False:
+        raise ValueError("This video has no audio track, so there is nothing to extract.")
     if mode == "mp3":
         bitrate = int(fmt.get("bitrate") or 192)
         if bitrate not in engines.MP3_BITRATES:

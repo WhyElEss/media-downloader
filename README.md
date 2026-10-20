@@ -194,6 +194,9 @@ Instagram и некоторые другие сайты отдают конте�
 | YouTube: `Sign in to confirm you're not a bot` | YouTube требует вход для IP хоста. Загрузить cookies для `youtube` |
 | `Unsupported URL` / `No suitable extractor` | Сайт не поддерживается выбранным движком. Попробовать кнопку «Try gallery-dl / Try yt-dlp» |
 | Сайт вчера работал, сегодня ошибка извлечения | Settings → Update engines |
+| Видео не играет на телефоне или ТВ | Выключен флажок «H.264»: у YouTube лучшее качество часто только в AV1/VP9 (проверено на 720p — без флажка пришёл AV1). Включить флажок и скачать заново. Файл с тем же именем не перезаписывается, поэтому старый сначала удалите в библиотеке |
+| MP3 из видео: «unable to obtain file audio codec with ffprobe» | У видео нет звуковой дорожки. Анализ теперь это определяет и не предлагает аудиоформаты |
+| `Your kernel does not support memory limit capabilities` при `up` | В ядре хоста выключен memory cgroup, поэтому `MEM_LIMIT` не действует (лимит CPU работает). На Raspberry Pi OS по [документации k3s](https://docs.k3s.io/installation/requirements) включается добавлением `cgroup_memory=1 cgroup_enable=memory` в конец единственной строки `/boot/firmware/cmdline.txt` и перезагрузкой |
 | Healthcheck `unhealthy` | `docker compose logs --tail=100` — ошибка будет там |
 
 Логи сервиса:

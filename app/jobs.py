@@ -4,6 +4,7 @@ survives a container restart (items that were running are queued again)."""
 import asyncio
 import json
 import logging
+import shutil
 import time
 from collections import deque
 from pathlib import Path
@@ -13,12 +14,14 @@ from .config import LIBRARY, MAX_CONCURRENT
 
 log = logging.getLogger("mediadl.jobs")
 ERROR_LIMIT = 64 * 1024
+TEMP_DIR_NAME = ".mediadl-tmp"
 
 
 def format_label(fmt: dict) -> str:
     mode = fmt.get("mode")
     if mode == "video":
-        return f"MP4 · up to {fmt['height']}p" if fmt.get("height") else "MP4 · best"
+        label = f"MP4 · up to {fmt['height']}p" if fmt.get("height") else "MP4 · best"
+        return label + (" · H.264" if fmt.get("compat") else "")
     if mode == "mp3":
         return f"MP3 · {fmt['bitrate']} kbps"
     if mode == "m4a":
@@ -155,6 +158,13 @@ class Runner:
     async def _run(self, item: dict) -> None:
         item_id = item["id"]
         spec = json.loads(item["spec"])
+        # yt-dlp keeps .part files and leftovers (e.g. a cover it failed to
+        # embed) here, on the library's disk so the final move is a rename;
+        # the directory is hidden from the library and removed afterwards.
+        temp_dir = LIBRARY / TEMP_DIR_NAME / str(item_id)
+        if spec["engine"] == "yt-dlp":
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            spec["temp_dir"] = str(temp_dir)
         args = engines.build_args(spec, spec["format"])
         files: list[str] = []
         output: deque[str] = deque(maxlen=300)
@@ -220,8 +230,11 @@ class Runner:
                 stdin=asyncio.subprocess.DEVNULL, env=engines.engine_env(),
                 start_new_session=True, limit=1024 * 1024)
             self.procs[item_id] = proc
-            await asyncio.gather(read_stdout(proc.stdout), read_stderr(proc.stderr))
-            rc = await proc.wait()
+            try:
+                await asyncio.gather(read_stdout(proc.stdout), read_stderr(proc.stderr))
+                rc = await proc.wait()
+            finally:
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
         if item_id in self.canceled:
             self._finish(item_id, "canceled", files=files)
