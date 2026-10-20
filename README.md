@@ -113,7 +113,9 @@ docker compose logs -f
 <LIBRARY_PATH>/<платформа>/<автор>/<дата>_<автор>_<ID поста>[_<номер в карусели>].<расширение>
 ```
 
-Например: `instagram/natgeo/2026-05-01_natgeo_DAbCdEf_03.jpg` или `youtube/Rick Astley/2009-10-25_Rick Astley_dQw4w9WgXcQ.mp4`.
+Например: `instagram/natgeo/2026-05-01_natgeo_DAbCdEf_03.jpg` или `youtube/Rick Astley/2009-10-25_Rick Astley_dQw4w9WgXcQ_1080p.mp4`. У видео в конце имени стоит высота кадра, поэтому один и тот же ролик в разных разрешениях не перезаписывается.
+
+Во время загрузки yt-dlp держит промежуточные файлы в скрытом `<LIBRARY_PATH>/.mediadl-tmp/<номер>` на том же диске; каталог удаляется после задачи, а библиотека скрытые папки не показывает.
 
 Имя платформы получается из домена ссылки: `x.com` → `twitter`, `youtu.be` → `youtube` и т. п. Это же имя используется для cookies.
 

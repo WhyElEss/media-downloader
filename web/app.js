@@ -142,6 +142,7 @@ function switchTab(name) {
   for (const btn of document.querySelectorAll("#tabs button")) btn.classList.toggle("active", btn.dataset.tab === name);
   for (const sec of document.querySelectorAll(".tab")) sec.classList.toggle("hidden", sec.id !== `tab-${name}`);
   if (location.hash !== `#${name}`) history.replaceState(null, "", `#${name}`);
+  window.scrollTo(0, 0);
   if (name === "queue") refreshJobs();
   if (name === "library") loadLibrary(true);
   if (name === "settings") { loadCookies(); loadEngines(); }
@@ -486,6 +487,7 @@ function libTile(f) {
   if (f.kind !== "other") {
     const img = h("img", { loading: "lazy", alt: "", src: thumbUrl(f.path) });
     img.addEventListener("error", () => img.remove());
+    img.addEventListener("load", () => { thumb.firstChild && thumb.firstChild.nodeType === 3 && thumb.firstChild.remove(); });
     thumb.append(img);
   }
   const box = h("input", { type: "checkbox", class: lib.selectMode ? "" : "hidden", checked: lib.selected.has(f.path), "aria-label": `Select ${f.name}` });

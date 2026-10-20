@@ -502,17 +502,19 @@ def build_args(spec: dict, fmt: dict) -> list[str]:
 
 
 async def versions() -> dict:
-    async def first_line(args):
+    async def first_line(args, words=None):
         try:
             rc, out, err = await run_capture(args, 30)
-            return (out or err).strip().splitlines()[0] if (out or err).strip() else "?"
+            text = (out or err).strip()
+            line = text.splitlines()[0] if text else "?"
+            return " ".join(line.split()[:words]) if words else line
         except (EngineError, OSError) as exc:
             return f"unavailable ({exc})"
     names = ["yt-dlp", "gallery-dl", "ffmpeg", "deno"]
     results = await asyncio.gather(
         first_line([YTDLP, "--version"]),
         first_line([GALLERY_DL, "--version"]),
-        first_line(["ffmpeg", "-hide_banner", "-version"]),
+        first_line(["ffmpeg", "-hide_banner", "-version"], words=3),
         first_line([str(ENGINES_BIN / "deno"), "--version"]),
     )
     return dict(zip(names, results))
