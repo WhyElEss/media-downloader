@@ -454,4 +454,16 @@ async def index():
     return FileResponse(WEB / "index.html", headers={"Cache-Control": "no-cache"})
 
 
+# Browsers fetch /favicon.ico on their own, and Safari's Favorites and the iOS
+# home screen look for the touch icon at the root as well.
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse(WEB / "favicon.ico", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/apple-touch-icon.png")
+async def apple_touch_icon():
+    return FileResponse(WEB / "apple-touch-icon.png", headers={"Cache-Control": "public, max-age=86400"})
+
+
 app.mount("/static", StaticFiles(directory=WEB), name="static")
